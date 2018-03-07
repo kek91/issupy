@@ -107,6 +107,7 @@ class MenuBar(tk.Menu):
         helpmenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="Help", menu=helpmenu)
         helpmenu.add_command(label="About", command=self.openAboutWindow)
+        helpmenu.add_command(label="License", command=self.openAboutWindow)
         helpmenu.add_command(label="Debug info", command=self.openDebugWindow)
 
     def quit(self):
@@ -190,7 +191,7 @@ class Application(ttk.Notebook):
             tab1,
             #font=appFont,
             selectmode=tk.SINGLE, activestyle='none',
-            selectbackground='#222222', bg=str(style_bg), fg=str(style_fg)
+            bg=str(style_bg), fg=str(style_fg)
         )
         listboxIssues.grid(row=0, column=0, sticky=W+E+N+S)
         self.getIssues(statusbar, listboxIssues)
