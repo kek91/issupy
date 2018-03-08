@@ -50,6 +50,10 @@ class Root(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         
         self.winfo_toplevel().title("Issupy")
+        # self.wm_iconbitmap(bitmap = "@list.XBM")
+        img = tk.PhotoImage(file='./issupy.gif')
+        self.tk.call('wm', 'iconphoto', self._w, img)
+
         # self.geometry("400x300+800+800")
         w = self.winfo_screenwidth()
         h = self.winfo_screenheight()
@@ -481,3 +485,4 @@ class NewIssueWindow(tk.Tk):
 
 root = Root()
 root.mainloop()
+root.iconbitmap("./issupy.ico")
