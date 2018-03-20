@@ -1,6 +1,7 @@
-build
-dist
-.vscode
+build/
+dist/
+.vscode/
+.cache/*.json
 __pycache__
 config.json
 main.spec

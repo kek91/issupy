@@ -4,13 +4,15 @@ import json
 import os
 import sys
 from time import sleep
+import urllib.request
 from pprint import pprint #debug
+import webbrowser
 from tkinter import font
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox, Tk, Text, TOP, BOTH, X, N, LEFT, RIGHT, RAISED, W, S, E, END
 from tkinter.ttk import Frame, Button, Label, Entry, Style
-import urllib.request
+from tkinter.colorchooser import *
 
 # https://api.github.com/user/repos?access_token=token
 # https://api.github.com/repos/:user/:repo/issues?access_token=token
@@ -44,6 +46,9 @@ def restartApp():
     python = sys.executable
     os.execl(python, python, * sys.argv)
 
+def colorPicker(self):
+    color = askcolor(parent=self)
+    return color[1]
 
 
 
@@ -82,11 +87,14 @@ class Root(tk.Tk):
         self.style = ttk.Style()
         self.style_bg = ''
         self.style_fg = ''
-        data = json.load(open('config.json', encoding='utf-8'))
-        self.loadSettings(data, self.status)
-
-        self.appFrame = Application(self, self.status, self.style_bg, self.style_fg)
-        self.appFrame.pack(side='top', fill='both', expand='True')
+        try:
+            data = json.load(open('config.json', encoding='utf-8'))
+            self.loadSettings(data, self.status)
+            self.appFrame = Application(self, self.status, self.style_bg, self.style_fg)
+            self.appFrame.pack(side='top', fill='both', expand='True')
+        except:
+            tk.messagebox.showerror("Error", "Error occured while instantiating Application frame.\n\nCheck config.json for errors.")
+            self.status.set('Error occured while instantiating Application frame. Check config.json for errors.')
         
     def loadSettings(root, jsondata, statusbar):
         root.default_font = font.nametofont("TkDefaultFont")
@@ -94,6 +102,8 @@ class Root(tk.Tk):
         root.winfo_toplevel().title("Issupy - "+str(jsondata["user"]))
         root.style = ttk.Style()
         root.style.configure('Issupy.TFrame', background=str(jsondata["background"]))
+        # root.style.configure('Issupy.TNotebook', background=str(jsondata["background"]), tabposition='')
+        root.style.configure("Issupy.TNotebook.Tab", foreground='#444')
         statusbar.set("Settings loaded. User: "+jsondata["user"]+", Repo: "+jsondata["repo"]+", Token: "+jsondata["token"]+"")
         root.style_bg = jsondata["background"]
         root.style_fg = jsondata["foreground"]
@@ -122,7 +132,7 @@ class MenuBar(tk.Menu):
 
         filemenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="File",underline=0, menu=filemenu)
-        filemenu.add_command(label="New", command=self.openNewIssueWindow, accelerator="Ctrl+N")
+        filemenu.add_command(label="New issue", command=self.openNewIssueWindow, accelerator="Ctrl+N")
         filemenu.add_separator()
         filemenu.add_command(label="Settings", command=self.openSettingsWindow)
         filemenu.add_separator()
@@ -135,7 +145,11 @@ class MenuBar(tk.Menu):
         self.add_cascade(label="Help", menu=helpmenu)
         helpmenu.add_command(label="About", command=self.openAboutWindow)
         helpmenu.add_command(label="License", command=self.openLicenseWindow)
+        helpmenu.add_separator()
         helpmenu.add_command(label="Debug info", command=self.openDebugWindow)
+        helpmenu.add_separator()
+        helpmenu.add_command(label="Help/tutorial (Web)", command=self.openWiki)
+        helpmenu.add_command(label="Issue tracker (Web)", command=self.openIssueTracker)
 
     def quit(self):
         sys.exit(0)
@@ -166,6 +180,12 @@ class MenuBar(tk.Menu):
     def openNewIssueWindow(self):
         newIssueWin = NewIssueWindow()
         newIssueWin.mainloop()
+
+    def openIssueTracker(self):
+        webbrowser.open("https://github.com/kek91/issupy/issues")
+    
+    def openWiki(self):
+        webbrowser.open("https://github.com/kek91/issupy/wiki")
 
 
 
@@ -215,7 +235,7 @@ class StatusBar(ttk.Frame):
 
 class Application(ttk.Notebook):
     def __init__(self, root, statusbar, style_bg, style_fg):
-        ttk.Notebook.__init__(self, root)
+        ttk.Notebook.__init__(self, root, style='Issupy.TNotebook')
 
         tab1 = ttk.Frame(self, style='Issupy.TFrame')
         tab2 = ttk.Frame(self, style='Issupy.TFrame')
@@ -223,6 +243,7 @@ class Application(ttk.Notebook):
         tab4 = ttk.Frame(self, style='Issupy.TFrame')
         tab5 = ttk.Frame(self, style='Issupy.TFrame')
         tab6 = ttk.Frame(self, style='Issupy.TFrame')
+        tab7 = ttk.Frame(self, style='Issupy.TFrame')
         tab1.grid_columnconfigure(0, weight=1)
         tab1.grid_rowconfigure(0, weight=1)
         tab2.grid_columnconfigure(0, weight=1)
@@ -235,6 +256,8 @@ class Application(ttk.Notebook):
         tab5.grid_rowconfigure(0, weight=1)
         tab6.grid_columnconfigure(0, weight=1)
         tab6.grid_rowconfigure(0, weight=1)
+        tab7.grid_columnconfigure(0, weight=1)
+        tab7.grid_rowconfigure(0, weight=1)
         
         self.add(tab1, text = "Open")
         self.add(tab2, text = "Closed")
@@ -242,6 +265,7 @@ class Application(ttk.Notebook):
         self.add(tab4, text = "Milestones")
         self.add(tab5, text = "My Repositories (Public)")
         self.add(tab6, text = "My Repositories (Private)")
+        self.add(tab7, text = "Notepad")
 
         '''
         Tab 1 content - Open
@@ -253,7 +277,6 @@ class Application(ttk.Notebook):
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxIssues.grid(row=0, column=0, sticky=W+E+N+S)
-        self.getIssues(statusbar, listboxIssues)
 
         '''
         Tab 2 content - Closed
@@ -264,7 +287,6 @@ class Application(ttk.Notebook):
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxIssuesClosed.grid(row=0, column=0, sticky=W+E+N+S)
-        self.getIssuesClosed(statusbar, listboxIssuesClosed)
 
         '''
         Tab 3 content - Labels
@@ -275,7 +297,6 @@ class Application(ttk.Notebook):
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxLabels.grid(row=0, column=0, sticky=W+E+N+S)
-        self.getLabels(statusbar, listboxLabels)
 
         '''
         Tab 4 content - Milestones
@@ -286,7 +307,6 @@ class Application(ttk.Notebook):
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxMilestones.grid(row=0, column=0, sticky=W+E+N+S)
-        self.getMilestones(statusbar, listboxMilestones)
 
         '''
         Tab 5 content - Repositories
@@ -297,7 +317,6 @@ class Application(ttk.Notebook):
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxRepositories.grid(row=0, column=0, sticky=W+E+N+S)
-        self.getRepositories(statusbar, listboxRepositories)
 
         '''
         Tab 6 content - Repositories private
@@ -308,7 +327,26 @@ class Application(ttk.Notebook):
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxRepositoriesPrivate.grid(row=0, column=0, sticky=W+E+N+S)
-        self.getRepositoriesPrivate(statusbar, listboxRepositoriesPrivate)
+
+        '''
+        Tab 7 content - Notepad
+        '''
+        textNotepad = tk.Text(
+            tab7,
+            bg=str(style_bg), fg=str(style_fg)
+        )
+        textNotepad.grid(row=0, column=0, sticky=W+E+N+S)
+
+        '''
+        Fetch data for every tabs
+        '''
+        self.getData(statusbar, listboxIssues, 'issues')
+        self.getData(statusbar, listboxIssuesClosed, 'closed_issues')
+        self.getData(statusbar, listboxLabels, 'labels')
+        self.getData(statusbar, listboxMilestones, 'milestones')
+        self.getData(statusbar, listboxRepositories, 'public_repos')
+        self.getData(statusbar, listboxRepositoriesPrivate, 'private_repos')
+        self.getData(statusbar, textNotepad, 'notepad')
 
 
 
@@ -329,6 +367,9 @@ class Application(ttk.Notebook):
         # listboxLabels.bind("<Double-Button-1>", self.keyEventOpenIssue)
         listboxRepositories.bind("<Double-Button-1>", self.keyEventChangeRepository)
         listboxRepositoriesPrivate.bind("<Double-Button-1>", self.keyEventChangeRepository)
+        textNotepad.bind("<Key>", lambda e:self.keyEventKeyDownNotepad(self, tab7))
+        textNotepad.bind("<FocusOut>", lambda e:self.keyEventSaveNotepad(self, tab7, textNotepad))
+        textNotepad.bind("<Control-s>", lambda e:self.keyEventSaveNotepad(self, tab7, textNotepad))
 
         
     def getConfig(self, root, statusbar):
@@ -336,115 +377,63 @@ class Application(ttk.Notebook):
         Root.loadSettings(root, data, statusbar)
         # tk.messagebox.showinfo("Configuration", "Config file successfully reloaded.\n\nUser:\n"+user+"\n\nRepository:\n"+repo+"\n\nPersonal Access Token:\n"+token)
 
-    def getIssues(self, statusbar, listboxIssues):
-        statusbar.set("Loading issues, please wait...")
-        statusbar.update_idletasks()
-        settings = json.load(open('config.json', encoding='utf-8'))
-        print("Querying Github API: https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/issues?access_token="+settings["token"])
-        try:
-            jsonissues = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/issues?per_page=100&access_token="+settings["token"])
-            issues = json.loads(jsonissues.read().decode())
-            # data = json.load(open('test_issues.json', encoding='utf-8'))
-            for issue in issues:
-                issueTxt = "#"+str(issue["number"])+": "+str(issue["title"])+" - "+str(issue["user"]["login"])
-                listboxIssues.insert(END, issueTxt)
-                statusbar.set('Fetching "'+str(issue["title"])+'"...')
-            statusbar.set('Idle.')
-            self.update_idletasks()
-        except Exception:
-            tk.messagebox.showerror("Error", "Could not retrieve Github issues.\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
-            statusbar.set('Idle. Error fetching Github issues.')
-            self.update_idletasks()
-        
-
-    def getIssuesClosed(self, statusbar, listboxIssuesClosed):
-        statusbar.set("Loading closed issues, please wait...")
+    def getData(self, statusbar, listbox, type = 'issues'):
+        statusbar.set("Loading "+str(type)+", please wait...")
         statusbar.update_idletasks()
         settings = json.load(open('config.json', encoding='utf-8'))
         try:
-            jsonissues = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/issues?state=closed&per_page=100&access_token="+settings["token"])
-            issues = json.loads(jsonissues.read().decode())
-            for issue in issues:
-                issueTxt = "#"+str(issue["number"])+": "+str(issue["title"])+" - "+str(issue["user"]["login"])
-                listboxIssuesClosed.insert(END, issueTxt)
-                statusbar.set('Fetching "'+str(issue["title"])+'"...')
-            statusbar.set('Idle.')
-            self.update_idletasks()
-        except Exception:
-            tk.messagebox.showerror("Error", "Could not retrieve Github closed issues.\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
-            statusbar.set('Idle. Error fetching Github closed issues.')
-            self.update_idletasks()
-    
-    def getLabels(self, statusbar, listboxLabels):
-        statusbar.set("Loading labels, please wait...")
-        statusbar.update_idletasks()
-        settings = json.load(open('config.json', encoding='utf-8'))
-        try:
-            jsonlabels = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/labels?per_page=100&access_token="+settings["token"])
-            labels = json.loads(jsonlabels.read().decode())
-            for label in labels:
-                lblTxt = str(label["name"])+" #"+str(label["color"])
-                listboxLabels.insert(END, lblTxt)
-                statusbar.set('Fetching "'+str(label["name"])+'"...')
-            statusbar.set('Idle.')
-            self.update_idletasks()
-        except Exception:
-            tk.messagebox.showerror("Error", "Could not retrieve Github labels.\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
-            statusbar.set('Idle. Error fetching Github labels.')
-            self.update_idletasks()
-
-    def getMilestones(self, statusbar, listboxMilestones):
-        statusbar.set("Loading milestones, please wait...")
-        statusbar.update_idletasks()
-        settings = json.load(open('config.json', encoding='utf-8'))
-        try:
-            jsonmilestones = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/milestones?per_page=100&access_token="+settings["token"])
-            milestones = json.loads(jsonmilestones.read().decode())
-            for milestone in milestones:
-                lblTxt = "#" + str(milestone["number"])+" - "+str(milestone["title"])+" - "+str(milestone["state"])
-                listboxMilestones.insert(END, lblTxt)
-                statusbar.set('Fetching "'+str(milestone["title"])+'"...')
-            statusbar.set('Idle.')
-            self.update_idletasks()
-        except Exception:
-            tk.messagebox.showerror("Error", "Could not retrieve Github milestones.\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
-            statusbar.set('Idle. Error fetching Github milestones.')
-            self.update_idletasks()
-
-    def getRepositories(self, statusbar, listbox):
-        statusbar.set("Loading repositories, please wait...")
-        statusbar.update_idletasks()
-        settings = json.load(open('config.json', encoding='utf-8'))
-        try:
-            jsondata = urllib.request.urlopen("https://api.github.com/user/repos?visibility=public&per_page=100&access_token="+settings["token"])
-            data = json.loads(jsondata.read().decode())
-            for i in data:
-                txt = str(i["full_name"])+" - "+str(i["description"]) #+" - "+("Private" if str(i["private"]) == "True" else "Public")
+            jsondata = None
+            data = None
+            if type == 'notepad':
+                if os.path.exists('./'+type+'.json'):
+                    data = json.load(open('./'+type+'.json', encoding='utf-8'))
+            elif type == 'public_repos' or type == 'private_repos':
+                if os.path.exists('./.cache/'+type+'.json'):
+                    data = json.load(open('./.cache/'+type+'.json', encoding='utf-8'))
+                else:
+                    jsondata = urllib.request.urlopen("https://api.github.com/user/repos?visibility="+str(type).split('_')[0]+"&per_page=100&access_token="+settings["token"])
+                    data = json.loads(jsondata.read().decode())
+                    with open('./.cache/'+type+'.json', 'w', encoding='utf-8') as outfile:
+                        json.dump(data, outfile)
+            else:
+                if os.path.exists('./.cache/'+type+'_'+settings['repo']+'.json'):
+                    data = json.load(open('./.cache/'+type+'_'+settings['repo']+'.json', encoding='utf-8'))
+                else:
+                    if type == 'issues':
+                        jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/issues?per_page=100&access_token="+settings["token"])
+                    elif type == 'closed_issues':
+                        jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/issues?state=closed&per_page=100&access_token="+settings["token"])
+                    elif type == 'labels':
+                        jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/labels?per_page=100&access_token="+settings["token"])
+                    elif type == 'milestones':
+                        jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/milestones?per_page=100&access_token="+settings["token"])
+                    data = json.loads(jsondata.read().decode())
+                    with open('./.cache/'+type+'_'+settings['repo']+'.json', 'w', encoding='utf-8') as outfile:
+                        json.dump(data, outfile)
+            if type == 'notepad':
+                txt = str(data["text"])
                 listbox.insert(END, txt)
-                statusbar.set('Fetching "'+str(i["name"])+'"...')
+            else:
+                for i in data:
+                    txt = ''
+                    if type == 'issues':
+                        txt = "#"+str(i["number"])+": "+str(i["title"])+" - "+str(i["user"]["login"])
+                    elif type == 'closed_issues':
+                        txt = "#"+str(i["number"])+": "+str(i["title"])+" - "+str(i["user"]["login"])
+                    elif type == 'labels':
+                        txt = str(i["name"])+" #"+str(i["color"])
+                    elif type == 'milestones':
+                        txt = "#" + str(i["number"])+" - "+str(i["title"])+" - "+str(i["state"])
+                    elif type == 'public_repos':
+                        txt = str(i["full_name"])+" - "+str(i["description"]) #+" - "+("Private" if str(i["private"]) == "True" else "Public")
+                    elif type == 'private_repos':
+                        txt = str(i["full_name"])+" - "+str(i["description"])
+                    listbox.insert(END, txt)
             statusbar.set('Idle.')
             self.update_idletasks()
         except Exception:
-            tk.messagebox.showerror("Error", "Could not retrieve Github repositories.\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
-            statusbar.set('Idle. Error fetching Github repositories.')
-            self.update_idletasks()
-
-    def getRepositoriesPrivate(self, statusbar, listbox):
-        statusbar.set("Loading private repositories, please wait...")
-        statusbar.update_idletasks()
-        settings = json.load(open('config.json', encoding='utf-8'))
-        try:
-            jsondata = urllib.request.urlopen("https://api.github.com/user/repos?visibility=private&per_page=100&access_token="+settings["token"])
-            data = json.loads(jsondata.read().decode())
-            for i in data:
-                txt = str(i["full_name"])+" - "+str(i["description"])
-                listbox.insert(END, txt)
-                statusbar.set('Fetching "'+str(i["name"])+'"...')
-            statusbar.set('Idle.')
-            self.update_idletasks()
-        except Exception:
-            tk.messagebox.showerror("Error", "Could not retrieve Github private repositories.\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
-            statusbar.set('Idle. Error fetching Github private repositories.')
+            tk.messagebox.showerror("Error", "Could not retrieve Github data ("+str(type)+").\n\nPlease check spelling of repository and your Personal Access Token in Settings.")
+            statusbar.set('Idle. Error fetching Github data.')
             self.update_idletasks()
 
     def keyEventNewIssue(event, bla):
@@ -469,6 +458,15 @@ class Application(ttk.Notebook):
         restartApp()
         
         print('Changing repo to '+str(repo))
+
+    def keyEventKeyDownNotepad(self, notebookwidget, tabwidget):
+        notebookwidget.tab(tabwidget, text="Notepad *")
+
+    def keyEventSaveNotepad(self, notebookwidget, tabwidget, textwidget):
+        jsontxt = {"text":textwidget.get(0.0,END)}
+        with open('notepad.json', 'w', encoding='utf-8') as outfile:
+            json.dump(jsontxt, outfile)
+        notebookwidget.tab(tabwidget, text="Notepad")
 
     def keyEventRestartApp(self, event):
         restartApp()
@@ -531,7 +529,7 @@ class AboutWindow(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.winfo_toplevel().title("About Issupy")
-        center(self, 800, 270)
+        center(self, 750, 300)
         self.frame = AboutFrame(self)
     def closeButton(self):
         self.destroy()
@@ -588,7 +586,7 @@ class LicenseWindow(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.winfo_toplevel().title("Issupy License")
-        center(self, 800, 400)
+        center(self, 750, 500)
         self.frame = LicenseFrame(self)
     def closeButton(self):
         self.destroy()
@@ -681,6 +679,12 @@ class SettingsFrame(ttk.Frame):
         lblResult = Label(root, text="")
         lblResult.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
 
+        buttonColorPickerBg = Button(root, text='Select Color', command=lambda:self.callColorPicker(entryBackground))
+        buttonColorPickerBg.grid(row=4, column=2)
+
+        buttonColorPickerFg = Button(root, text='Select Color', command=lambda:self.callColorPicker(entryForeground))
+        buttonColorPickerFg.grid(row=5, column=2)
+
         buttonSave = Button(root, text="Save", width=70, command=lambda:root.saveSettings({
             "user":entryUser.get(),
             "repo":entryRepo.get(),
@@ -693,6 +697,11 @@ class SettingsFrame(ttk.Frame):
 
         buttonSave = Button(root, text="Close", width=70, command=root.closeButton)
         buttonSave.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+    
+    def callColorPicker(self, entry):
+        color = colorPicker(self)
+        entry.delete(0, END)
+        entry.insert(0, str(color))
 
 
 class SettingsWindow(tk.Tk):
