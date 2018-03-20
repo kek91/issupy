@@ -14,7 +14,8 @@ Work in progress...
 - Compatible with Windows, Linux and MacOS (MacOS has not been tested but should work in theory)
 - Lightweight/fast (compared to clunky web apps and bloated Electron apps)
 - Simple UI with some minor color/theme tweaking supported
-- Caches issues which has not been modified to speed up load time
+- Caching to speed up load times
+- Builtin notepad!
 
 ## Known issues
 

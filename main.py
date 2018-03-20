@@ -51,6 +51,33 @@ def colorPicker(self):
     return color[1]
 
 
+def getIssue(number):
+    settings = json.load(open('config.json', encoding='utf-8'))
+    jsonissues = json.load(open('./.cache/issues_'+str(settings['repo'])+'.json', encoding='utf-8'))
+    output = {}
+    for i in jsonissues:
+        if str(i["number"]) == str(number):
+            return i
+
+            output["url"] = i["url"]
+            output["title"] = i["title"]
+            output["owner"] = i["user"]["login"]
+            output["avatar"] = i["user"]["avatar_url"]
+            output["state"] = i["state"]
+            output["locked"] = i["locked"]
+            output["milestone"] = i["milestone"]
+            output["labels"] = i["NotImplemented"]
+            output["assignees"] = i["NotImplemented"]
+            # output[""] = i[""]
+            # output[""] = i[""]
+            '''
+            li = 0
+            for label in i["labels"]:
+                output["labels"][li]["name"] = label["name"]
+                output["labels"][li]["color"] = label["color"]
+                li = li + 1
+            '''
+    return output
 
 
 
@@ -99,7 +126,7 @@ class Root(tk.Tk):
     def loadSettings(root, jsondata, statusbar):
         root.default_font = font.nametofont("TkDefaultFont")
         root.default_font.configure(size=int(jsondata["fontsize"]))
-        root.winfo_toplevel().title("Issupy - "+str(jsondata["user"]))
+        root.winfo_toplevel().title("Issupy - "+str(jsondata["user"])+"/"+str(jsondata["repo"]))
         root.style = ttk.Style()
         root.style.configure('Issupy.TFrame', background=str(jsondata["background"]))
         # root.style.configure('Issupy.TNotebook', background=str(jsondata["background"]), tabposition='')
@@ -441,10 +468,9 @@ class Application(ttk.Notebook):
         newIssueWin.mainloop()
 
     def keyEventOpenIssue(self, event):
-        widget = event.widget
-        selection=widget.curselection()
-        value = widget.get(selection[0])
-        print( "selection:", selection, ": '%s'" % value )
+        issuenumber = event.widget.get(event.widget.curselection()[0]).split(':')[0].replace('#', '')
+        openIssueWin = IssueWindow(issuenumber)
+        openIssueWin.mainloop()
 
     def keyEventChangeRepository(self, event):
         widget = event.widget
@@ -815,6 +841,107 @@ class NewIssueWindow(tk.Tk):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class IssueFrame(ttk.Frame):
+    def __init__(self, root, jsonissue):
+        ttk.Frame.__init__(self, root)
+        Label(root, text='Title').grid(row=0, column=0, sticky=W)
+        Label(root, text='Description').grid(row=1, column=0, sticky=W)
+        Label(root, text='Labels').grid(row=2, column=0, sticky=W)
+        Label(root, text='Milestone').grid(row=3, column=0, sticky=W)
+        Label(root, text='Assignees').grid(row=4, column=0, sticky=W)
+        Label(root, text='Status').grid(row=5, column=0, sticky=W)
+        
+        entryTitle = Entry(root, width=50)
+        entryTitle.grid(row=0, column=1, padx=5, pady=5)
+        entryTitle.insert(0, jsonissue["title"])
+
+        entryBody = Text(root, width=57, height=8)
+        entryBody.grid(row=1, column=1, padx=5, pady=5)
+        entryBody.insert(0.0, jsonissue["body"])
+
+        entryLabels = Entry(root, width=50)
+        entryLabels.grid(row=2, column=1, padx=5, pady=5)
+        entryLabels.insert(0, jsonissue["labels"])
+
+        entryMilestone = Entry(root, width=50)
+        entryMilestone.grid(row=3, column=1, padx=5, pady=5)
+        entryMilestone.insert(0, jsonissue["milestone"])
+
+        entryAssignees = Entry(root, width=50)
+        entryAssignees.grid(row=4, column=1, padx=5, pady=5)
+        entryAssignees.insert(0, jsonissue["assignees"])
+
+        entryStatus = Entry(root, width=50)
+        entryStatus.grid(row=5, column=1, padx=5, pady=5)
+        entryStatus.insert(0, jsonissue["state"])
+
+        lblResult = Label(root, text="")
+        lblResult.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+
+        buttonSave = Button(root, text="Save", width=70, command=lambda:root.saveIssue({
+            "title":entryTitle.get(),
+            "body":entryBody.get("1.0",END),
+            "labels":entryLabels.get(),
+            "milestone":entryMilestone.get(),
+            "assignees":entryAssignees.get(),
+            "status":entryStatus.get(),
+            }, lblResult))
+        buttonSave.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
+
+        buttonSave = Button(root, text="Close", width=70, command=root.closeButton)
+        buttonSave.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+
+
+class IssueWindow(tk.Tk):
+    def __init__(self, issue, *args, **kwargs):
+        tk.Tk.__init__(self, *args, **kwargs)
+        jsonissue = getIssue(issue)
+        self.winfo_toplevel().title("Issue #"+str(jsonissue["number"])+": "+str(jsonissue["title"]))
+        center(self, 800, 500)
+        self.frame = IssueFrame(self, jsonissue)
+
+    def saveIssue(self, data, label):
+        '''
+        with open('config.json', 'w', encoding='utf-8') as outfile:
+            json.dump(data, outfile)
+        '''
+        label.config(text='Not Implemented')
+        label.update_idletasks()
+        sleep(0.5)
+        label.config(text='')
+        label.update_idletasks()
+
+    def closeButton(self):
+        self.destroy()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 root = Root()
 root.mainloop()
-root.iconbitmap("./issupy.ico")
+# root.iconbitmap("./issupy.ico")
