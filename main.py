@@ -46,38 +46,53 @@ def restartApp():
     python = sys.executable
     os.execl(python, python, * sys.argv)
 
+def syncRepo(statusbar):
+    settings = json.load(open('config.json', encoding='utf-8'))
+    try:
+        statusbar.set("Cleaning issues...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/issues_'+settings['repo']+'.json')
+        statusbar.set("Cleaning closed issues...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/closed_issues_'+settings['repo']+'.json')
+        statusbar.set("Cleaning labels...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/labels_'+settings['repo']+'.json')
+        statusbar.set("Cleaning milestones...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/milestones_'+settings['repo']+'.json')
+        statusbar.set("Cleaning contributors...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/contributors_'+settings['repo']+'.json')
+        restartApp()
+    except OSError as e:
+        statusbar.set("Sync error: "+e.strerror+". Try again later...")
+        statusbar.update_idletasks()
+def syncRepoIssues(statusbar):
+    settings = json.load(open('config.json', encoding='utf-8'))
+    try:
+        statusbar.set("Cleaning issues...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/issues_'+settings['repo']+'.json')
+        statusbar.set("Cleaning closed issues...")
+        statusbar.update_idletasks()
+        os.remove('./.cache/closed_issues_'+settings['repo']+'.json')
+        restartApp()
+    except OSError as e:
+        statusbar.set("Sync error: "+e.strerror+". Try again later...")
+        statusbar.update_idletasks()
+
 def colorPicker(self):
     color = askcolor(parent=self)
     return color[1]
 
 
-def getIssue(number):
+def getIssueData(id, data):
     settings = json.load(open('config.json', encoding='utf-8'))
-    jsonissues = json.load(open('./.cache/issues_'+str(settings['repo'])+'.json', encoding='utf-8'))
-    output = {}
-    for i in jsonissues:
-        if str(i["number"]) == str(number):
+    jsondata = json.load(open('./.cache/'+data+'_'+str(settings['repo'])+'.json', encoding='utf-8'))
+    for i in jsondata:
+        if data == 'issues' and str(i["number"]) == str(id):
             return i
-
-            output["url"] = i["url"]
-            output["title"] = i["title"]
-            output["owner"] = i["user"]["login"]
-            output["avatar"] = i["user"]["avatar_url"]
-            output["state"] = i["state"]
-            output["locked"] = i["locked"]
-            output["milestone"] = i["milestone"]
-            output["labels"] = i["NotImplemented"]
-            output["assignees"] = i["NotImplemented"]
-            # output[""] = i[""]
-            # output[""] = i[""]
-            '''
-            li = 0
-            for label in i["labels"]:
-                output["labels"][li]["name"] = label["name"]
-                output["labels"][li]["color"] = label["color"]
-                li = li + 1
-            '''
-    return output
 
 
 
@@ -103,7 +118,7 @@ class Root(tk.Tk):
         h = self.winfo_screenheight()
         # self.geometry("400x300+%s+%s")
         # toplevel.winfo_screenwidth()
-        center(self, 1024, 640)
+        center(self, 1366, 768)
 
         self.status = StatusBar(self)
         self.status.pack(side='bottom', fill='x')
@@ -125,7 +140,7 @@ class Root(tk.Tk):
         
     def loadSettings(root, jsondata, statusbar):
         root.default_font = font.nametofont("TkDefaultFont")
-        root.default_font.configure(size=int(jsondata["fontsize"]))
+        root.default_font.configure(size=int(jsondata["fontsize"])) #, family="Verdana")
         root.winfo_toplevel().title("Issupy - "+str(jsondata["user"])+"/"+str(jsondata["repo"]))
         root.style = ttk.Style()
         root.style.configure('Issupy.TFrame', background=str(jsondata["background"]))
@@ -163,7 +178,9 @@ class MenuBar(tk.Menu):
         filemenu.add_separator()
         filemenu.add_command(label="Settings", command=self.openSettingsWindow)
         filemenu.add_separator()
-        filemenu.add_command(label="Reload config", command=lambda:self.reloadConfig(parent, statusbar))
+        filemenu.add_command(label="Resync issues", command=lambda:self.callSyncRepoIssues(parent, statusbar))
+        filemenu.add_command(label="Resync all data", command=lambda:self.callSyncRepo(parent, statusbar))
+        #filemenu.add_command(label="Reload config", command=lambda:self.reloadConfig(parent, statusbar))
         filemenu.add_command(label="Restart app", command=restartApp, accelerator="Ctrl+R")
         filemenu.add_separator()
         filemenu.add_command(label="Exit", underline=1, command=self.quit, accelerator="Ctrl+Q")
@@ -183,6 +200,12 @@ class MenuBar(tk.Menu):
     
     def callback(self):
         print("called the callback!")
+
+    def callSyncRepo(self, parent, statusbar):
+        syncRepo(statusbar)
+    def callSyncRepoIssues(self, parent, statusbar):
+        syncRepoIssues(statusbar)
+
 
     def reloadConfig(self, parent, statusbar):
         Application.getConfig(self, parent, statusbar)
@@ -271,6 +294,7 @@ class Application(ttk.Notebook):
         tab5 = ttk.Frame(self, style='Issupy.TFrame')
         tab6 = ttk.Frame(self, style='Issupy.TFrame')
         tab7 = ttk.Frame(self, style='Issupy.TFrame')
+        tab8 = ttk.Frame(self, style='Issupy.TFrame')
         tab1.grid_columnconfigure(0, weight=1)
         tab1.grid_rowconfigure(0, weight=1)
         tab2.grid_columnconfigure(0, weight=1)
@@ -285,18 +309,18 @@ class Application(ttk.Notebook):
         tab6.grid_rowconfigure(0, weight=1)
         tab7.grid_columnconfigure(0, weight=1)
         tab7.grid_rowconfigure(0, weight=1)
+        tab8.grid_columnconfigure(0, weight=1)
+        tab8.grid_rowconfigure(0, weight=1)
         
         self.add(tab1, text = "Open")
         self.add(tab2, text = "Closed")
         self.add(tab3, text = "Labels")
         self.add(tab4, text = "Milestones")
-        self.add(tab5, text = "My Repositories (Public)")
-        self.add(tab6, text = "My Repositories (Private)")
-        self.add(tab7, text = "Notepad")
+        self.add(tab5, text = "Contributors")
+        self.add(tab6, text = "My Repositories (Public)")
+        self.add(tab7, text = "My Repositories (Private)")
+        self.add(tab8, text = "Notepad")
 
-        '''
-        Tab 1 content - Open
-        '''
         listboxIssues = tk.Listbox(
             tab1,
             #font=appFont,
@@ -305,9 +329,6 @@ class Application(ttk.Notebook):
         )
         listboxIssues.grid(row=0, column=0, sticky=W+E+N+S)
 
-        '''
-        Tab 2 content - Closed
-        '''
         listboxIssuesClosed = tk.Listbox(
             tab2,
             selectmode=tk.SINGLE, activestyle='none',
@@ -315,9 +336,6 @@ class Application(ttk.Notebook):
         )
         listboxIssuesClosed.grid(row=0, column=0, sticky=W+E+N+S)
 
-        '''
-        Tab 3 content - Labels
-        '''
         listboxLabels = tk.Listbox(
             tab3,
             selectmode=tk.SINGLE, activestyle='none',
@@ -325,9 +343,6 @@ class Application(ttk.Notebook):
         )
         listboxLabels.grid(row=0, column=0, sticky=W+E+N+S)
 
-        '''
-        Tab 4 content - Milestones
-        '''
         listboxMilestones = tk.Listbox(
             tab4,
             selectmode=tk.SINGLE, activestyle='none',
@@ -335,31 +350,29 @@ class Application(ttk.Notebook):
         )
         listboxMilestones.grid(row=0, column=0, sticky=W+E+N+S)
 
-        '''
-        Tab 5 content - Repositories
-        '''
-        listboxRepositories = tk.Listbox(
+        listboxContributors = tk.Listbox(
             tab5,
+            selectmode=tk.SINGLE, activestyle='none',
+            bg=str(style_bg), fg=str(style_fg)
+        )
+        listboxContributors.grid(row=0, column=0, sticky=W+E+N+S)
+
+        listboxRepositories = tk.Listbox(
+            tab6,
             selectmode=tk.SINGLE, activestyle='none',
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxRepositories.grid(row=0, column=0, sticky=W+E+N+S)
 
-        '''
-        Tab 6 content - Repositories private
-        '''
         listboxRepositoriesPrivate = tk.Listbox(
-            tab6,
+            tab7,
             selectmode=tk.SINGLE, activestyle='none',
             bg=str(style_bg), fg=str(style_fg)
         )
         listboxRepositoriesPrivate.grid(row=0, column=0, sticky=W+E+N+S)
 
-        '''
-        Tab 7 content - Notepad
-        '''
         textNotepad = tk.Text(
-            tab7,
+            tab8,
             bg=str(style_bg), fg=str(style_fg)
         )
         textNotepad.grid(row=0, column=0, sticky=W+E+N+S)
@@ -371,6 +384,7 @@ class Application(ttk.Notebook):
         self.getData(statusbar, listboxIssuesClosed, 'closed_issues')
         self.getData(statusbar, listboxLabels, 'labels')
         self.getData(statusbar, listboxMilestones, 'milestones')
+        self.getData(statusbar, listboxContributors, 'contributors')
         self.getData(statusbar, listboxRepositories, 'public_repos')
         self.getData(statusbar, listboxRepositoriesPrivate, 'private_repos')
         self.getData(statusbar, textNotepad, 'notepad')
@@ -394,9 +408,9 @@ class Application(ttk.Notebook):
         # listboxLabels.bind("<Double-Button-1>", self.keyEventOpenIssue)
         listboxRepositories.bind("<Double-Button-1>", self.keyEventChangeRepository)
         listboxRepositoriesPrivate.bind("<Double-Button-1>", self.keyEventChangeRepository)
-        textNotepad.bind("<Key>", lambda e:self.keyEventKeyDownNotepad(self, tab7))
-        textNotepad.bind("<FocusOut>", lambda e:self.keyEventSaveNotepad(self, tab7, textNotepad))
-        textNotepad.bind("<Control-s>", lambda e:self.keyEventSaveNotepad(self, tab7, textNotepad))
+        textNotepad.bind("<Key>", lambda e:self.keyEventKeyDownNotepad(self, tab8))
+        textNotepad.bind("<FocusOut>", lambda e:self.keyEventSaveNotepad(self, tab8, textNotepad))
+        textNotepad.bind("<Control-s>", lambda e:self.keyEventSaveNotepad(self, tab8, textNotepad))
 
         
     def getConfig(self, root, statusbar):
@@ -434,6 +448,8 @@ class Application(ttk.Notebook):
                         jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/labels?per_page=100&access_token="+settings["token"])
                     elif type == 'milestones':
                         jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/milestones?per_page=100&access_token="+settings["token"])
+                    elif type == 'contributors':
+                        jsondata = urllib.request.urlopen("https://api.github.com/repos/"+settings["user"]+"/"+settings["repo"]+"/assignees?per_page=100&access_token="+settings["token"])
                     data = json.loads(jsondata.read().decode())
                     with open('./.cache/'+type+'_'+settings['repo']+'.json', 'w', encoding='utf-8') as outfile:
                         json.dump(data, outfile)
@@ -451,6 +467,8 @@ class Application(ttk.Notebook):
                         txt = str(i["name"])+" #"+str(i["color"])
                     elif type == 'milestones':
                         txt = "#" + str(i["number"])+" - "+str(i["title"])+" - "+str(i["state"])
+                    elif type == 'contributors':
+                        txt = "#" + str(i["login"])+" - "+str(i["type"])+" - "+str(i["avatar_url"])
                     elif type == 'public_repos':
                         txt = str(i["full_name"])+" - "+str(i["description"]) #+" - "+("Private" if str(i["private"]) == "True" else "Public")
                     elif type == 'private_repos':
@@ -858,41 +876,56 @@ class NewIssueWindow(tk.Tk):
 class IssueFrame(ttk.Frame):
     def __init__(self, root, jsonissue):
         ttk.Frame.__init__(self, root)
-        Label(root, text='Title').grid(row=0, column=0, sticky=W)
-        Label(root, text='Description').grid(row=1, column=0, sticky=W)
-        Label(root, text='Labels').grid(row=2, column=0, sticky=W)
-        Label(root, text='Milestone').grid(row=3, column=0, sticky=W)
-        Label(root, text='Assignees').grid(row=4, column=0, sticky=W)
-        Label(root, text='Status').grid(row=5, column=0, sticky=W)
+
+        # Label(root, text='Title').grid(row=0, column=0, sticky=W)
         
-        entryTitle = Entry(root, width=50)
-        entryTitle.grid(row=0, column=1, padx=5, pady=5)
+        print(jsonissue["milestone"])
+        
+        '''
+        Layout:
+        0       1         2         3
+                  Title
+        Labels      |   Description
+        Milestone   |   Comments
+        Status      |   Comments
+        Assignees   |   Comments
+
+        '''
+
+        entryTitle = Entry(root, width=80, font = 'Verdana 14 normal') # width=50,
+        entryTitle.grid(row=0, column=0, sticky=W+E+N+S, padx=5, pady=5)
         entryTitle.insert(0, jsonissue["title"])
 
-        entryBody = Text(root, width=57, height=8)
-        entryBody.grid(row=1, column=1, padx=5, pady=5)
-        entryBody.insert(0.0, jsonissue["body"])
 
-        entryLabels = Entry(root, width=50)
-        entryLabels.grid(row=2, column=1, padx=5, pady=5)
-        entryLabels.insert(0, jsonissue["labels"])
+        Label(root, text='Labels').grid(row=1, column=0, sticky=E+W)
+        entryLabels = Entry(root) # width=50
+        entryLabels.grid(row=2, column=0, padx=5, pady=5, sticky=E+W)
+        entryLabels.insert(0, str(jsonissue["labels"]))
 
+        Label(root, text='Milestone').grid(row=3, column=0, sticky=E+W)
         entryMilestone = Entry(root, width=50)
-        entryMilestone.grid(row=3, column=1, padx=5, pady=5)
-        entryMilestone.insert(0, jsonissue["milestone"])
+        entryMilestone.grid(row=4, column=0, padx=5, pady=5, sticky=E+W)
+        entryMilestone.insert(0, str(jsonissue["milestone"]))
 
+        Label(root, text='Assignees').grid(row=5, column=0, sticky=E+W)
         entryAssignees = Entry(root, width=50)
-        entryAssignees.grid(row=4, column=1, padx=5, pady=5)
+        entryAssignees.grid(row=6, column=0, padx=5, pady=5, sticky=E+W)
         entryAssignees.insert(0, jsonissue["assignees"])
 
+        Label(root, text='Status').grid(row=7, column=0, sticky=E+W)
         entryStatus = Entry(root, width=50)
-        entryStatus.grid(row=5, column=1, padx=5, pady=5)
+        entryStatus.grid(row=8, column=0, padx=5, pady=5, sticky=E+W)
         entryStatus.insert(0, jsonissue["state"])
 
-        lblResult = Label(root, text="")
-        lblResult.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+        Label(root, text='Description').grid(row=9, column=0, sticky=E+W)
+        entryBody = Text(root, font='Verdana 10 normal')
+        entryBody.grid(row=10, column=0, columnspan=2, padx=5, pady=5, sticky=N+E+S+W)
+        entryBody.insert(0.0, jsonissue["body"])
 
-        buttonSave = Button(root, text="Save", width=70, command=lambda:root.saveIssue({
+        # lblResult = Label(root, text="")
+        # lblResult.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+
+        buttonSave = Button(root, text="Save", command=lambda:root.saveIssue({
             "title":entryTitle.get(),
             "body":entryBody.get("1.0",END),
             "labels":entryLabels.get(),
@@ -900,18 +933,19 @@ class IssueFrame(ttk.Frame):
             "assignees":entryAssignees.get(),
             "status":entryStatus.get(),
             }, lblResult))
-        buttonSave.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
+        buttonSave.grid(row=11, column=0, columnspan=4, padx=5, pady=5)
 
-        buttonSave = Button(root, text="Close", width=70, command=root.closeButton)
-        buttonSave.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+        buttonClose = Button(root, text="Close", command=root.closeButton)
+        buttonClose.grid(row=12, column=0, columnspan=4, padx=5, pady=5)
 
 
 class IssueWindow(tk.Tk):
     def __init__(self, issue, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        jsonissue = getIssue(issue)
+        jsonissue = getIssueData(issue, 'issues')
+        jsonlabels = getIssueData(issue, 'labels')
         self.winfo_toplevel().title("Issue #"+str(jsonissue["number"])+": "+str(jsonissue["title"]))
-        center(self, 800, 500)
+        center(self, 1024, 800)
         self.frame = IssueFrame(self, jsonissue)
 
     def saveIssue(self, data, label):
