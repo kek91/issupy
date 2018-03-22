@@ -90,9 +90,13 @@ def colorPicker(self):
 def getIssueData(id, data):
     settings = json.load(open('config.json', encoding='utf-8'))
     jsondata = json.load(open('./.cache/'+data+'_'+str(settings['repo'])+'.json', encoding='utf-8'))
-    for i in jsondata:
-        if data == 'issues' and str(i["number"]) == str(id):
-            return i
+    if data == 'issues':
+        for i in jsondata:
+            if str(i["number"]) == str(id):
+                return i
+    else:
+        return jsondata
+        
 
 
 
@@ -874,12 +878,13 @@ class NewIssueWindow(tk.Tk):
 
 
 class IssueFrame(ttk.Frame):
-    def __init__(self, root, jsonissue):
+    def __init__(self, root, jsonissue, jsonlabels, jsonmilestones, jsoncontributors):
         ttk.Frame.__init__(self, root)
-
+        irow = 0
+        icol = 0
         # Label(root, text='Title').grid(row=0, column=0, sticky=W)
         
-        print(jsonissue["milestone"])
+        # print(jsonissue["milestone"])
         
         '''
         Layout:
@@ -893,38 +898,58 @@ class IssueFrame(ttk.Frame):
         '''
 
         entryTitle = Entry(root, width=80, font = 'Verdana 14 normal') # width=50,
-        entryTitle.grid(row=0, column=0, sticky=W+E+N+S, padx=5, pady=5)
+        entryTitle.grid(row=irow, column=0, sticky=W+E+N+S, padx=5, pady=5)
         entryTitle.insert(0, jsonissue["title"])
+        
+        irow += 1
 
 
-        Label(root, text='Labels').grid(row=1, column=0, sticky=E+W)
+        Label(root, text='Labels').grid(row=irow, column=0, sticky=E+W)
+        irow += 1
+        checks = {}
+        for label in jsonlabels:
+            # setattr(checks, label["name"], '')
+            checks[label["name"]] = ''
+            c = tk.Checkbutton(root, text=label["name"], variable=checks[label["name"]])
+            c.grid(row=irow, column=0, sticky=W)
+            print(label)
+            irow += 1
         entryLabels = Entry(root) # width=50
-        entryLabels.grid(row=2, column=0, padx=5, pady=5, sticky=E+W)
+        entryLabels.grid(row=irow, column=0, padx=5, pady=5, sticky=E+W)
         entryLabels.insert(0, str(jsonissue["labels"]))
 
-        Label(root, text='Milestone').grid(row=3, column=0, sticky=E+W)
+        irow += 1
+        Label(root, text='Milestone').grid(row=irow, column=0, sticky=E+W)
+        irow += 1
         entryMilestone = Entry(root, width=50)
-        entryMilestone.grid(row=4, column=0, padx=5, pady=5, sticky=E+W)
+        entryMilestone.grid(row=irow, column=0, padx=5, pady=5, sticky=E+W)
         entryMilestone.insert(0, str(jsonissue["milestone"]))
 
-        Label(root, text='Assignees').grid(row=5, column=0, sticky=E+W)
+        irow += 1
+        Label(root, text='Assignees').grid(row=irow, column=0, sticky=E+W)
+        irow += 1
         entryAssignees = Entry(root, width=50)
-        entryAssignees.grid(row=6, column=0, padx=5, pady=5, sticky=E+W)
+        entryAssignees.grid(row=irow, column=0, padx=5, pady=5, sticky=E+W)
         entryAssignees.insert(0, jsonissue["assignees"])
 
-        Label(root, text='Status').grid(row=7, column=0, sticky=E+W)
+        irow += 1
+        Label(root, text='Status').grid(row=irow, column=0, sticky=E+W)
+        irow += 1
         entryStatus = Entry(root, width=50)
-        entryStatus.grid(row=8, column=0, padx=5, pady=5, sticky=E+W)
+        entryStatus.grid(row=irow, column=0, padx=5, pady=5, sticky=E+W)
         entryStatus.insert(0, jsonissue["state"])
 
-        Label(root, text='Description').grid(row=9, column=0, sticky=E+W)
+        irow += 1
+        Label(root, text='Description').grid(row=irow, column=0, sticky=E+W)
+        irow += 1
         entryBody = Text(root, font='Verdana 10 normal')
-        entryBody.grid(row=10, column=0, columnspan=2, padx=5, pady=5, sticky=N+E+S+W)
+        entryBody.grid(row=irow, column=0, columnspan=2, padx=5, pady=5, sticky=N+E+S+W)
         entryBody.insert(0.0, jsonissue["body"])
 
         # lblResult = Label(root, text="")
         # lblResult.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
 
+        irow += 1
         buttonSave = Button(root, text="Save", command=lambda:root.saveIssue({
             "title":entryTitle.get(),
             "body":entryBody.get("1.0",END),
@@ -933,20 +958,27 @@ class IssueFrame(ttk.Frame):
             "assignees":entryAssignees.get(),
             "status":entryStatus.get(),
             }, lblResult))
-        buttonSave.grid(row=11, column=0, columnspan=4, padx=5, pady=5)
+        buttonSave.grid(row=irow, column=0, columnspan=4, padx=5, pady=5)
 
+        irow += 1
         buttonClose = Button(root, text="Close", command=root.closeButton)
-        buttonClose.grid(row=12, column=0, columnspan=4, padx=5, pady=5)
+        buttonClose.grid(row=irow, column=0, columnspan=4, padx=5, pady=5)
 
 
 class IssueWindow(tk.Tk):
     def __init__(self, issue, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         jsonissue = getIssueData(issue, 'issues')
+        print('Issue details:\n'+str(jsonissue))
         jsonlabels = getIssueData(issue, 'labels')
+        print('Issue jsonlabels:\n'+str(jsonlabels))
+        jsonmilestones = getIssueData(issue, 'milestones')
+        print('Issue jsonmilestones:\n'+str(jsonmilestones))
+        jsoncontributors = getIssueData(issue, 'contributors')
+        print('Issue jsoncontributors:\n'+str(jsoncontributors))
         self.winfo_toplevel().title("Issue #"+str(jsonissue["number"])+": "+str(jsonissue["title"]))
         center(self, 1024, 800)
-        self.frame = IssueFrame(self, jsonissue)
+        self.frame = IssueFrame(self, jsonissue, jsonlabels, jsonmilestones, jsoncontributors)
 
     def saveIssue(self, data, label):
         '''
